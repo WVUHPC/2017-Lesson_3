@@ -454,10 +454,24 @@ This is summary of some of them:
 | omp_get_wtick               |    returns a double-precision floating point value equal to the number of seconds between successive clock ticks |
 |:---------------------|-----------|
 
+When using those runtime calls in C/C++ you need to import "omp.h".
 
+> ## Challenge
+>
+> Create a program  that get the maximum number of threads and use
+> "omp_set_num_threads" to create loops with increasing number of threads up to
+> the limit imposed by omp_get_max_threads.
+>
+{: .challenge}
 
+## Where to go from here
 
+The OpenMP webpage is [OpenMP](http://www.openmp.org "OpenMP") offers several
+resources. Several examples are available at
+[OpenMP Github page](https://github.com/OpenMP/Examples).
 
+This lesson is loosely based on a similar one from
+[Lawrence Livermore National Laboratory](https://computing.llnl.gov/tutorials/openMP)
 
 
 {% include links.md %}
