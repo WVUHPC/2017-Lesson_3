@@ -64,7 +64,7 @@ int main(int argc, char *argv[])
 ~~~
 gcc -fopenmp omp_simple.c
 ~~~
-{: .source}
+{: .bash}
 
 Executing the executable "a.out" will produce:
 
@@ -83,6 +83,113 @@ machine. However, you can control that number changing the environmental variabl
 
 ~~~
 OMP_NUM_THREADS=3 ./a.out
+~~~
+{: .bash}
+
+Similarly, the fortran version of the same program is
+
+~~~
+program hello
+
+  !$omp parallel
+  print *, 'This is a thread'
+  !$omp end parallel
+
+end program hello
+~~~
+{: .source}
+
+~~~
+gfortran -fopenmp omp_simple.f90
+~~~
+{: .source}
+
+And executed like
+~~~
+OMP_NUM_THREADS=3 ./a.out
+~~~
+{: .bash}
+
+Now its time to a more useful and complex example.
+One of the typical cases where OpenMP offers advantages is doing
+Single Instruction Multiple Data (SIMD) operations.
+For example, if you want to compute the dot product of two vectors, you are
+doing the same operation, multiplying two numbers, for all the indices of
+the vectors. As both vectors are on the same memory space that all cores can see,
+the operation can be easily compute concurrently, by giving each core a chunk
+of the vector and storing the result on another one also shared by all cores.
+Lets see the example of that.
+The C version looks like this:
+
+~~~
+#include <omp.h>
+#include <stdio.h>
+#define N 10000
+#define CHUNKSIZE 100
+
+int main(int argc, char *argv[]) {
+
+  int i, chunk;
+  float a[N], b[N], c[N];
+
+  /* Initializing vectors */
+  for (i=0; i < N; i++)
+    {
+      a[i] = i;
+      b[i] = i * N;
+    }
+  chunk = CHUNKSIZE;
+
+#pragma omp parallel shared(a,b,c,chunk) private(i)
+  {
+#pragma omp for schedule(dynamic,chunk)
+    for (i=0; i < N; i++)
+      c[i] = a[i] + b[i];
+  }   /* end of parallel region */
+
+  for (i=0; i < 10; i++) printf("%17.1f %17.1f %17.1f\n", a[i], b[i], c[i]);
+  printf("...\n");
+  for (i=N-10; i < N; i++)  printf("%17.1f %17.1f %17.1f\n", a[i], b[i], c[i]);
+}
+~~~
+{: .source}
+
+And the fortran version is:
+
+~~~
+program omp_vec_addition
+
+  integer n, chunksize, chunk, i
+  parameter (n=10000)
+  parameter (chunksize=100)
+  real a(n), b(n), c(n)
+
+  !initialization of vectors
+  do i = 1, n
+     a(i) = i
+     b(i) = a(i) * n
+  enddo
+  chunk = chunksize
+
+  !$omp parallel shared(a,b,c,chunk) private(i)
+
+  !$omp do schedule(dynamic,chunk)
+  do i = 1, n
+     c(i) = a(i) + b(i)
+  enddo
+  !$omp end do
+
+  !$omp end parallel
+
+  do i = 1, 10
+     write(*,'(3F17.1)') a(i), b(i), c(i)
+  end do
+  write(*,*) '...'
+  do i = 1, 10
+      write(*,'(3F17.1)') a(n-10+i), b(n-10+i), c(n-10+i)
+  end do
+
+end program omp_vec_addition
 ~~~
 {: .source}
 
