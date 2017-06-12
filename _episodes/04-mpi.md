@@ -78,6 +78,8 @@ The version in C is:
 ~~~
 {: .source}
 
+The same program in Fortran 90 follows:
+
 ~~~
 program mpi_env
 
@@ -232,6 +234,176 @@ This submission script is requesting 4 cores for running your job in one node.
 Using MPI you are not constrain to use a single node, but it is always a good
 idea to run the program using cores as close as possible.
 
+## Sending Messages with Broadcasting
 
+Lets review one classic example of MPI programming.
+Many functions are computationally perform by expansions in series.
+Lets use a inverse tangent series that to approximate pi.
+The idea is to spread the terms of the sum among several cores, giving each of
+them a range of values to work.
+The C version of the code is:
+
+~~~
+#include <stdio.h>
+#include <stdlib.h>
+#include "mpi.h"
+#include <math.h>
+
+int main(int argc, char *argv[])
+{
+  int n, myid, numprocs, i;
+  double PI25DT = 3.141592653589793238462643;
+  double mypi, pi, h, sum, x;
+  MPI_Init(&argc,&argv);
+  MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
+  MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+  if (argc < 2)  {
+      n=10;
+    }
+  else {
+      n=atoi(argv[1]);
+    }
+
+  MPI_Bcast(&n, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  h   = 1.0 / (double) n;
+  sum = 0.0;
+  printf(" Rank %d computing from %d up to %d jumping %d\n", myid,  myid+1, n, numprocs);
+  for (i = myid + 1; i <= n; i += numprocs) {
+    x = h * ((double)i - 0.5);
+    sum += (4.0 / (1.0 + x*x));
+  }
+  mypi = h * sum;
+  MPI_Reduce(&mypi, &pi, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  if (myid == 0)
+      printf("pi is approximately %.16f, Error is %.16e\n",
+	     pi, fabs(pi - PI25DT));
+  MPI_Finalize();
+  return 0;
+}
+~~~
+{: .source}
+
+The version in Fortran 90 is:
+
+~~~
+program main
+  use mpi
+  double precision  pi25dt
+  parameter        (pi25dt = 3.141592653589793238462643d0)
+  double precision  mypi, pi, h, sum, x, f, a
+  integer n, myid, numprocs, i, ierr
+  character(len=32) :: arg
+  ! Function to integrate
+  f(a) = 4.d0 / (1.d0 + a*a)
+
+  ! Basic initialization calls
+  call mpi_init(ierr)
+  call mpi_comm_rank(mpi_comm_world, myid, ierr)
+  call mpi_comm_size(mpi_comm_world, numprocs, ierr)
+
+  if (myid .eq. 0) then
+     i = 0
+     ierr = 1
+     do
+        call get_command_argument(i, arg)
+        if (len_trim(arg) == 0) exit
+        i = i+1
+        if (i .eq. 2) then
+           read(arg,*,iostat=ierr)  n
+
+           if (ierr .ne. 0 ) then
+              write(*,*) 'Conversion failed asuming n = 10 ierr=',ierr,n
+              n = 10
+           end if
+        end if
+     end do
+  write(*,*) 'Splitting with N = ', n
+  endif
+
+  ! Broadcast n
+  call mpi_bcast(n, 1, mpi_integer, 0, mpi_comm_world, ierr)
+  ! Calculate the interval size
+  h = 1.0d0/n
+  sum  = 0.0d0
+  write(*,*) 'Rank ', myid, 'Computing from ', myid+1, 'jumping ', numprocs
+  do i = myid+1, n, numprocs
+     x = h * (dble(i) - 0.5d0)
+     sum = sum + f(x)
+  enddo
+  mypi = h * sum
+  ! Collect all the partial sums
+  call mpi_reduce(mypi, pi, 1, mpi_double_precision, &
+       mpi_sum, 0, mpi_comm_world, ierr)
+  ! Node 0 prints the answer.
+  if (myid .eq. 0) then
+     print *, 'pi is ', pi, ' error is', abs(pi - pi25dt)
+  endif
+
+  call mpi_finalize(ierr)
+end program main
+~~~
+{: .source}
+
+The compilation line is:
+
+~~~
+mpicc mpi_pi.c
+~~~
+{: .source}
+
+or
+
+~~~
+mpif90 mpi_pi.f90
+~~~
+{: .source}
+
+The executable expects one argument, the number of elements to perform the
+integration.
+
+~~~
+mpirun -np 4 ./a.out 10000
+~~~
+{: .source}
+
+There are two new functions here:
+
+### MPI_Bcast
+
+Data movement operation. Broadcasts (sends) a message from the process with
+rank "root" to all other processes in the group.
+
+~~~
+MPI_Bcast (&buffer,count,datatype,root,comm)
+MPI_BCAST (buffer,count,datatype,root,comm,ierr)
+~~~
+{: .source}
+
+### MPI_Reduce
+
+Collective computation operation. Applies a reduction operation on all tasks in the group and places the result in one task.
+
+~~~
+MPI_Reduce (&sendbuf,&recvbuf,count,datatype,op,root,comm)
+MPI_REDUCE (sendbuf,recvbuf,count,datatype,op,root,comm,ierr)
+~~~
+{: .source}
+
+The predefined MPI reduction operations appear below. Users can also define their own reduction functions by using the MPI_Op_create routine.
+
+| MPI | Reduction Operation	| C Data Types | Fortran Data Type |
+|:----|--------------------|:-------------|:-------------------|
+| MPI_MAX	| maximum	     | integer, float	| integer, real, complex |
+| MPI_MIN	| minimum	     | integer, float	| integer, real, complex |
+| MPI_SUM	| sum	         | integer, float	| integer, real, complex |
+| MPI_PROD | product	   | integer, float	| integer, real, complex |
+| MPI_LAND | logical AND |	integer	| logical |
+| MPI_BAND | bit-wise AND	| integer, MPI_BYTE	| integer, MPI_BYTE |
+| MPI_LOR	 | logical OR	  | integer	| logical |
+| MPI_BOR	 | bit-wise OR  | integer, MPI_BYTE	| integer, MPI_BYTE |
+| MPI_LXOR | logical XOR  | integer	| logical |
+| MPI_BXOR | bit-wise XOR	| integer, MPI_BYTE	| integer, MPI_BYTE |
+| MPI_MAXLOC	| max value and location	| float, double and long double	real, complex, double precision |
+| MPI_MINLOC	| min value and location	| float, double and long double	real, complex, double precision |
 
 {% include links.md %}
