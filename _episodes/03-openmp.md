@@ -473,5 +473,4 @@ resources. Several examples are available at
 This lesson is loosely based on a similar one from
 [Lawrence Livermore National Laboratory](https://computing.llnl.gov/tutorials/openMP)
 
-
 {% include links.md %}

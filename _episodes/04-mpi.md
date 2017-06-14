@@ -392,7 +392,7 @@ MPI_REDUCE (sendbuf,recvbuf,count,datatype,op,root,comm,ierr)
 The predefined MPI reduction operations appear below. Users can also define their own reduction functions by using the MPI_Op_create routine.
 
 | MPI | Reduction Operation	| C Data Types | Fortran Data Type |
-|:----|--------------------|:-------------|:-------------------|
+|:----|:--------------------|:-------------|:------------------|
 | MPI_MAX	| maximum	     | integer, float	| integer, real, complex |
 | MPI_MIN	| minimum	     | integer, float	| integer, real, complex |
 | MPI_SUM	| sum	         | integer, float	| integer, real, complex |
@@ -405,5 +405,9 @@ The predefined MPI reduction operations appear below. Users can also define thei
 | MPI_BXOR | bit-wise XOR	| integer, MPI_BYTE	| integer, MPI_BYTE |
 | MPI_MAXLOC	| max value and location	| float, double and long double	real, complex, double precision |
 | MPI_MINLOC	| min value and location	| float, double and long double	real, complex, double precision |
+
+## Point-to-point communication
+
+
 
 {% include links.md %}
