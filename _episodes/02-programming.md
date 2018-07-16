@@ -405,7 +405,7 @@ int main(int argc, const char * argv[])
 ~~~
 {: .source}
 
-### Sotring data with HDF5
+### Storing data with HDF5
 
 HDF5 is a library to store data in a binary file.
 Lets see one example:
